@@ -1,0 +1,105 @@
+<?php
+
+
+/**
+ * Implements hook_menu().
+ */
+
+function callbackform_menu() {
+ $items['ajax/callbackform/%ctools_js'] = array(
+    'page callback' => 'callbackform_popup',
+    'page arguments' => array(2),
+    'access callback' => TRUE,
+    'type' => MENU_CALLBACK,
+  );
+ return $items;
+}
+
+function callbackform_form($form, &$form_state) {
+  $form['phone'] = array(
+    '#type' => 'textfield',
+    '#attributes' => array('placeholder'=>'Ваш телефон'),
+    );
+  $form['submit'] = array('#type' => 'submit', '#value' => 'Перезвонить');
+  $form['#attributes']['class'] = array('form-inline');
+  return $form;
+}
+
+/**
+ * Implements hook_token_info(). This hook will register tow token lname and fname.
+ */
+function callbackform_token_info() {
+  $info['tokens']['site']['callbackform'] = array(
+    'name' => t('Callback form'),
+    'description' => t('Add callback form with phone enter field and submit button'),
+  );
+  $info['tokens']['site']['callbackform-link'] = array(
+    'name' => t('Callback form link'),
+    'description' => t('Add link, which open popup with callback form'),
+  );
+  return $info;
+}
+
+function callbackform_theme() {
+  return array(
+    'callbackform_form' => array(
+      'render element' => 'form',
+      'template' => 'callbackform-template'
+      )
+    );
+}
+
+/**
+ * Implements hook_tokens(). This hook will operate the token and replace it with it's value.
+ */
+function callbackform_tokens($type, $tokens, array $data = array(), array $options = array()) {
+  $replacements = array();
+  $sanitize = !empty($options['sanitize']);
+    foreach ($tokens as $name => $original) {
+      switch ($name) {
+        case 'callbackform':
+          $form = drupal_get_form('callbackform_form');
+          $replacements[$original] = render($form);
+        break;
+        case 'callbackform-link':
+        ctools_include('ajax');
+        ctools_include('modal');
+          $link = l('Заказать обратный звонок','ajax/callbackform/nojs',array('attributes' => array('class'=>array('ctools-use-modal'))));
+          $replacements[$original] = $link;
+        break;
+      }
+    }
+  return $replacements;
+}
+
+/**
+ * Ajax menu callback.
+ */
+function callbackform_popup($ajax) {
+  if ($ajax) {
+    ctools_include('ajax');
+    ctools_include('modal');
+
+    $form_state = array(
+      'ajax' => TRUE,
+      'title' => t('Callback form'),
+    );
+
+    // Use ctools to generate ajax instructions for the browser to create
+    // a form in a modal popup.
+    $output = ctools_modal_form_wrapper('callbackform_form', $form_state);
+
+    // If the form has been submitted, there may be additional instructions
+    // such as dismissing the modal popup.
+    if (!empty($form_state['ajax_commands'])) {
+      $output = $form_state['ajax_commands'];
+    }
+
+    // Return the ajax instructions to the browser via ajax_render().
+    print ajax_render($output);
+    drupal_exit();
+  }
+  else {
+    return drupal_get_form('callbackform_form');
+  }
+}
